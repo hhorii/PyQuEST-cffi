@@ -53,12 +53,12 @@ COMPILER = gcc
 COMPILER_TYPE = GNU
 
 # hardwares to target: 1 means use, 0 means don't use
-MULTITHREADED = 1
+MULTITHREADED = 0
 DISTRIBUTED = 0
-GPUACCELERATED = 0
+GPUACCELERATED = 1
 
 # GPU hardware dependent, lookup at https://developer.nvidia.com/cuda-gpus, write without fullstop
-GPU_COMPUTE_CAPABILITY = 30
+GPU_COMPUTE_CAPABILITY = 70
 
 # whether to suppress the below warnings about compiler compatibility
 SUPPRESS_WARNING = 0
@@ -222,7 +222,7 @@ CPP_GNU_FLAGS = -O2 -std=c++11 -mavx -Wall -DQuEST_PREC=$(PRECISION) $(THREAD_FL
 CPP_INTEL_FLAGS = -O2 -std=c++11 -fprotect-parens -Wall -xAVX -axCORE-AVX2 -diag-disable -cpu-dispatch -DQuEST_PREC=$(PRECISION) $(THREAD_FLAGS)
 
 # wrappers
-CPP_CUDA_FLAGS = -O2 -arch=compute_$(GPU_COMPUTE_CAPABILITY) -code=sm_$(GPU_COMPUTE_CAPABILITY) -DQuEST_PREC=$(PRECISION) -ccbin $(COMPILER)
+CPP_CUDA_FLAGS = -O2 --compiler-options '-fPIC' -arch=compute_$(GPU_COMPUTE_CAPABILITY) -code=sm_$(GPU_COMPUTE_CAPABILITY) -DQuEST_PREC=$(PRECISION) -ccbin $(COMPILER)
 
 # choose c/c++ flags based on compiler type
 ifeq ($(COMPILER_TYPE), CLANG)
@@ -278,19 +278,19 @@ ifeq ($(GPUACCELERATED), 1)
   %.o: %.c
 	$(COMPILER) -x c $(C_FLAGS) $(QUEST_INCLUDE) -c $<
   %.o: $(QUEST_INNER_DIR)/%.c
-	$(COMPILER) -x c $(C_FLAGS) -c $<
+	$(COMPILER) -x c $(C_FLAGS) $(QUEST_INCLUDE) -c $<
   %.o: $(QUEST_COMMON_DIR)/%.c
-	$(COMPILER) -x c $(C_FLAGS) -c $<
+	$(COMPILER) -x c $(C_FLAGS) $(QUEST_INCLUDE) -c $<
 
   %.o: %.cu
 	$(CUDA_COMPILER) -dc $(CPP_CUDA_FLAGS) $(QUEST_INCLUDE) $<
   %.o: $(QUEST_INNER_DIR)/%.cu
-	$(CUDA_COMPILER) -dc $(CPP_CUDA_FLAGS) $<
+	$(CUDA_COMPILER) -dc $(CPP_CUDA_FLAGS) $(QUEST_INCLUDE) $<
 
   %.o: %.cpp
 	$(CUDA_COMPILER) -dc $(CPP_CUDA_FLAGS) $(QUEST_INCLUDE) $<
   %.o: $(QUEST_INNER_DIR)/%.cpp
-	$(CUDA_COMPILER) -dc $(CPP_CUDA_FLAGS) $<
+	$(CUDA_COMPILER) -dc $(CPP_CUDA_FLAGS) $(QUEST_INCLUDE) $<
 
 # distributed
 else ifeq ($(DISTRIBUTED), 1)
@@ -334,7 +334,7 @@ endif
 ifeq ($(GPUACCELERATED), 1)
 
   all:	$(OBJ)
-		$(CUDA_COMPILER) $(CPP_CUDA_FLAGS) $(QUEST_INCLUDE) -o $(EXE) $(OBJ) $(LIBS)
+		$(CUDA_COMPILER) $(CPP_CUDA_FLAGS) $(QUEST_INCLUDE) -shared -o libQuEST.so $(OBJ) $(LIBS)
 
 # MPI
 else ifeq ($(DISTRIBUTED), 1)
